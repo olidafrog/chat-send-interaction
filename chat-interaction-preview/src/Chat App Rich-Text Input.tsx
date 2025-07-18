@@ -3,9 +3,9 @@ import { Send, CornerDownLeft, Bold, Italic, Strikethrough, List, ListOrdered, Q
 
 const ChatSendPrototype = () => {
   const [message, setMessage] = useState('');
-  const [sentMessages, setSentMessages] = useState([]);
+  const [sentMessages, setSentMessages] = useState<string[]>([]);
   const [isMultilineMode, setIsMultilineMode] = useState(false);
-  const textareaRef = useRef(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if we should be in multiline mode
   useEffect(() => {
@@ -26,10 +26,10 @@ const ChatSendPrototype = () => {
   }, [message]);
 
   // Format the input text for display
-  const formatInputText = (text) => {
+  const formatInputText = (text: string) => {
     // Split by lines to handle each line separately
     const lines = text.split('\n');
-    const formattedLines = lines.map(line => {
+    const formattedLines = lines.map((line: string) => {
       // Handle unordered lists
       if (/^[\s]*[-*+]\s/.test(line)) {
         return line.replace(/^([\s]*)([-*+])\s/, '$1• ');
@@ -41,35 +41,38 @@ const ChatSendPrototype = () => {
   };
 
   // Simple markdown to HTML converter for display
-  const renderMarkdown = (text) => {
+  const renderMarkdown = (text: string) => {
     let html = text;
-    
     // Code blocks
     html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 p-2 rounded my-2"><code>$1</code></pre>');
-    
     // Headings
     html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold my-2">$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-semibold my-2">$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-semibold my-2">$1</h1>');
-    
-    // Lists
-    html = html.replace(/^\* (.*$)/gim, '<li class="ml-4">$1</li>');
-    html = html.replace(/^- (.*$)/gim, '<li class="ml-4">$1</li>');
-    html = html.replace(/^\+ (.*$)/gim, '<li class="ml-4">$1</li>');
-    html = html.replace(/^\d+\. (.*$)/gim, '<li class="ml-4">$1</li>');
-    
+    // Ordered lists
+    if (/^\d+\. /m.test(html)) {
+      html = html.replace(/((^|\n)(\d+\. .*(\n|$))+)/gm, (match) => {
+        const items = match.trim().split(/\n/).map(line => line.replace(/^\d+\.\s/, '').trim());
+        return `<ol class="ml-4 list-decimal">${items.map(i => `<li>${i}</li>`).join('')}</ol>`;
+      });
+    }
+    // Unordered lists
+    if (/^[-*+] /m.test(html)) {
+      html = html.replace(/((^|\n)([-*+] .*(\n|$))+)/gm, (match) => {
+        const items = match.trim().split(/\n/).map(line => line.replace(/^[-*+]\s/, '').trim());
+        return `<ul class="ml-4 list-disc">${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
+      });
+    }
     // Bold and italic
-    html = html.replace(/\*\*\*(.*)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.*)\*/g, '<em>$1</em>');
-    
+    html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     // Line breaks
     html = html.replace(/\n/g, '<br/>');
-    
     return html;
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle Enter with modifiers first (highest priority)
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -85,7 +88,8 @@ const ChatSendPrototype = () => {
     
     // Handle plain Enter
     if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-      const textarea = textareaRef.current;
+      const textarea = textareaRef.current as HTMLTextAreaElement | null;
+      if (!textarea) return;
       const cursorPos = textarea.selectionStart;
       const textBeforeCursor = message.substring(0, cursorPos);
       const textAfterCursor = message.substring(cursorPos);
@@ -177,8 +181,9 @@ const ChatSendPrototype = () => {
     }
   };
 
-  const insertFormatting = (type) => {
-    const textarea = textareaRef.current;
+  const insertFormatting = (type: string) => {
+    const textarea = textareaRef.current as HTMLTextAreaElement | null;
+    if (!textarea) return;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const text = message;
@@ -229,7 +234,7 @@ const ChatSendPrototype = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
+    <div className="max-w-2xl mx-auto p-8">
       {/* Rendered Messages */}
       <div className="mb-4 space-y-2">
         {sentMessages.map((msg, index) => (
@@ -243,71 +248,71 @@ const ChatSendPrototype = () => {
       </div>
 
       {/* Message Input Area */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="bg-white rounded-lg shadow-sm" style={{ marginBottom: '3rem' }}>
         {/* Formatting Toolbar */}
-        <div className="flex items-center gap-1 p-2 border-b border-gray-200">
+        <div className="flex items-center gap-0">
           <button
             onClick={() => insertFormatting('bold')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Bold"
           >
-            <Bold size={18} />
+            <Bold size={18} className="text-gray-700" />
           </button>
           <button
             onClick={() => insertFormatting('italic')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Italic"
           >
-            <Italic size={18} />
+            <Italic size={18} className="text-gray-700" />
           </button>
           <button
             onClick={() => insertFormatting('strikethrough')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Strikethrough"
           >
-            <Strikethrough size={18} />
+            <Strikethrough size={18} className="text-gray-700" />
           </button>
           <div className="w-px h-6 bg-gray-300 mx-1" />
           <button
             onClick={() => insertFormatting('unordered-list')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Bullet List"
           >
-            <List size={18} />
+            <List size={18} className="text-gray-700" />
           </button>
           <button
             onClick={() => insertFormatting('ordered-list')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Numbered List"
           >
-            <ListOrdered size={18} />
+            <ListOrdered size={18} className="text-gray-700" />
           </button>
           <button
             onClick={() => insertFormatting('quote')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Quote"
           >
-            <Quote size={18} />
+            <Quote size={18} className="text-gray-700" />
           </button>
           <button
             onClick={() => insertFormatting('code')}
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Code"
           >
-            <Code size={18} />
+            <Code size={18} className="text-gray-700" />
           </button>
           <div className="w-px h-6 bg-gray-300 mx-1" />
           <button
-            className="p-2 hover:bg-gray-100 rounded transition-colors"
+            className="m-1 hover:bg-gray-200 rounded transition-colors text-gray-700"
             title="Attach File"
           >
-            <Paperclip size={18} />
+            <Paperclip size={18} className="text-gray-700" />
           </button>
         </div>
 
         {/* Input Area */}
-        <div className="flex items-end gap-2 p-3">
-          <div className="flex-1 relative">
+       
+          <div className="flex-1">
             <textarea
               ref={textareaRef}
               value={formatInputText(message)}
@@ -319,23 +324,17 @@ const ChatSendPrototype = () => {
               }}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
-              className="w-full resize-none border-0 outline-none min-h-[24px] max-h-[200px] leading-6"
-              style={{ height: 'auto', overflowY: 'auto' }}
+              className="w-full resize-none border border-gray-100 rounded h-9 outline-none min-h-[36px] max-h-[200px] leading-6 bg-white"
+              style={{ height: '39px', overflowY: 'auto', borderRadius: '4px' }}
               rows={1}
               onInput={(e) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
+                const ta = e.target as HTMLTextAreaElement;
+                ta.style.height = '39px';
+                ta.style.height = ta.scrollHeight + 'px';
               }}
             />
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-gray-100 rounded transition-colors">
-              <Smile size={20} />
-            </button>
-            
-            <div className="relative group">
-              <button
+
+      <button
                 onClick={handleSend}
                 className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center gap-1"
               >
@@ -344,6 +343,11 @@ const ChatSendPrototype = () => {
                   <span className="text-xs">⌘</span>
                 )}
               </button>
+
+          </div>
+
+        
+
               
               {/* Tooltip */}
               {isMultilineMode && (
@@ -363,9 +367,9 @@ const ChatSendPrototype = () => {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
+            
+          
+      
 
         {/* Status Bar */}
         <div className="flex items-center justify-between px-3 pb-2 text-xs text-gray-500">
